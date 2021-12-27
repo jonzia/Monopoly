@@ -24,7 +24,7 @@ classdef Monopoly
             obj.numPlayers = numPlayers; obj.turn = 1; obj.current = 1;
             obj.doubleCounter = 0; obj.isJailed = false(1, numPlayers);
             obj.jailCounter = zeros(numPlayers, 1); obj.isBankrupt = false(1, numPlayers);
-            obj.stateLength = 66;
+            obj.stateLength = 57 + 5*obj.numPlayers;
 
             % Create board table
             index = 1:40; index = index'; isOwned = false(40, 1); owner = zeros(40, 1);
@@ -89,7 +89,8 @@ classdef Monopoly
             tile = obj.board.index(obj.board.players(:, obj.current) == 1);
 
             % Get new tile
-            newTile = mod(tile + roll, 40); result = newTile;
+            newTile = mod(tile + roll, 40); 
+            if newTile == 0; newTile = 40; end; result = newTile;
             temp = zeros(40, 1); temp(newTile) = 1;
             obj.board.players(:, obj.current) = temp;
 
@@ -141,7 +142,7 @@ classdef Monopoly
 
         % Pay from bank to player or vice-versa; and from player to player
         function [obj, isError] = payCash(obj, amount, player, transaction, varargin)
-            otherPlayer = player; if ~isempty(varargin); otherPlayer = varargin; end
+            otherPlayer = player; if ~isempty(varargin); otherPlayer = varargin{1}; end
             % Note, if the bank does not have the cash, distribute maximum
             % amount possible.
             % cashBankToPlayer -> transfer from bank to player
@@ -242,6 +243,7 @@ classdef Monopoly
         function [obj, isError] = swapProperties(obj, fromPlayer, toPlayer, property1, property2)
             % If player 1/2 does not have the property to trade (without
             % houses, unmortgaged), return an error
+            isError = false;
             if obj.board.owner(obj.board.property == property1) ~= fromPlayer || ...
                     obj.board.owner(obj.board.property == property2) ~= toPlayer || ...
                     obj.board.numHouses(obj.board.property == property1) ~= 0 || ...
@@ -309,6 +311,7 @@ classdef Monopoly
         % Calculate player debt
         function [debt, isBankrupt] = calculateDebt(obj, player, amount)
             debt = min(0, obj.assets.("P" + string(player))(obj.assets.asset == Resource.cash) - amount);
+            debt = debt*-1;
             if amount > obj.assets.("P" + string(player))(obj.assets.asset == Resource.netWorth)
                 isBankrupt = true;
             else
@@ -317,7 +320,7 @@ classdef Monopoly
         end
 
         % Compress board into state vector
-        state = getState(obj)
+        state = getState(obj, varargin)
 
     end
 
@@ -335,7 +338,7 @@ classdef Monopoly
             distance = zeros(length(toTile), 1);
             for i = 1:length(toTile)
                 if toTile(i) > fromTile
-                    distance(i) = toTile - fromTile;
+                    distance(i) = toTile(i) - fromTile;
                 else
                     distance(i) = (40 - fromTile) + toTile(i);
                 end

@@ -1,4 +1,4 @@
-function obj = turnManager(obj)
+function obj = turnManager(obj, model, epsilon)
 
     % ---------------------------------------------------------------------
     % This function runs one turn of the game given a value function and
@@ -15,6 +15,9 @@ function obj = turnManager(obj)
     % Get current player
     current = "P" + string(obj.current);
 
+    % Set debt handling flag (true = requires debt handling)
+    debtHandling = false; isBankrupt = false;
+
     % ---------------------------------------------------------------------
     % JAIL MANAGEMENT
     % ---------------------------------------------------------------------
@@ -23,6 +26,7 @@ function obj = turnManager(obj)
     % If player pays 50/GOJFC, release from jail and proceed
     if obj.isJailed(obj.current)
         % GOJFC
+        usedGOJFC = false;
         if obj.assets.(current)(obj.assets.asset == Resource.getOutOfJail) > 0
             newObj = obj;
             newObj.assets.(current)(obj.assets.asset == Resource.getOutOfJail) = ...
@@ -30,14 +34,16 @@ function obj = turnManager(obj)
             newObj.assets.bank(obj.assets.asset == Resource.getOutOfJail) = ...
                 newObj.assets.bank(obj.assets.asset == Resource.getOutOfJail) + 1;
             newObj.isJailed(obj.current) = false; newObj.jailCounter(obj.current) = 0;
-            selection = game.policy(newObj.getState(), [], obj.getState());
-            if selection == 1; obj = newObj; end
+            selection = game.policy(newObj.getState(), model, 'epsilon', epsilon, 'baseline', obj.getState());
+            if selection == 1; usedGOJFC = true; obj = newObj; end
             % Pay 50
-        elseif obj.assets.(current)(obj.assets.asset == Resource.cash) >= 50
+        end
+        if obj.assets.(current)(obj.assets.asset == Resource.cash) >= 50 && ...
+                ~usedGOJFC
             newObj = obj;
             [newObj, ~] = newObj.payCash(50, obj.current, Transaction.cashPlayerToBank);
             newObj.isJailed(obj.current) = false; newObj.jailCounter(obj.current) = 0;
-            selection = game.policy(newObj.getState(), [], obj.getState());
+            selection = game.policy(newObj.getState(), 'epsilon', epsilon, 'baseline', model, obj.getState());
             if selection == 1; obj = newObj; end
         end
     end
@@ -48,9 +54,6 @@ function obj = turnManager(obj)
 
     % Get 'old tile' of current player
     oldTile = obj.board.index(obj.board.players(:, obj.current) == 1);
-
-    % Set debt handling flag (true = requires debt handling)
-    debtHandling = false; isBankrupt = false;
 
     % Roll the dice
     [roll, isDouble] = obj.roll();
@@ -80,11 +83,11 @@ function obj = turnManager(obj)
         % Otherwise, if they're jailed and did not roll a double,
         % increment the jail counter
     elseif obj.isJailed(obj.current) && ~isDouble
-        obj.jailCounter = obj.jailCounter + 1;
+        obj.jailCounter(obj.current) = obj.jailCounter(obj.current) + 1;
     end
     % If they have had three rolls in jail without a double, they have to
     % pay 50 or present a card.
-    if obj.isJailed(obj.current) && obj.jailCounter == 3
+    if obj.isJailed(obj.current) && obj.jailCounter(obj.current) == 3
         % First, if they have a card, use it and release them without
         % moving.
         if obj.assets.(current)(obj.assets.asset == Resource.getOutOfJail) > 0
@@ -101,12 +104,10 @@ function obj = turnManager(obj)
             % Player does not have resources to get out of jail; if they do
             % not have a net worth of 50, go bankrupt. Else, release from
             % jail and proceed to debt collection.
-            if obj.assets.(current)(obj.assets.asset == Resource.netWorth) < 50
-                debtHandling = true; isBankrupt = true; debt = 50; oweTo = 0;
-            else
-                debtHandling = true; debt = 50; obj.isJailed(obj.current) = false;
-                obj.jailCounter(obj.current) = 0; oweTo = 0;
-            end
+            debtHandling = true; oweTo = 0;
+            [debt, isBankrupt] = obj.calculateDebt(obj.current, 50);
+            if ~isBankrupt; obj.isJailed(obj.current) = false; ...
+                    obj.jailCounter(obj.current) = 0; end
         end
     end
 
@@ -126,7 +127,7 @@ function obj = turnManager(obj)
             loop = true;
             while loop
                 c = enumeration('Chance'); len = length(c);
-                idx = randi([1, len]); card = m(idx);
+                idx = randi([1, len]); card = c(idx);
                 % Can't issue GOJFC if there are none left
                 loop = false;
                 if card == Chance.getOutOfJailFree && ...
@@ -277,7 +278,7 @@ function obj = turnManager(obj)
                 loop = true;
                 while loop
                     c = enumeration('CommunityChest'); len = length(c);
-                    idx = randi([1, len]); card = m(idx);
+                    idx = randi([1, len]); card = c(idx);
                     % Can't issue GOJFC if there are none left
                     loop = false;
                     if card == CommunityChest.getOutOfJailFree && ...
@@ -462,7 +463,7 @@ function obj = turnManager(obj)
     if obj.board.property(newTile) ~= Properties.null
 
         % If the property is owned by another player, pay what is owed
-        if obj.board.isOwned(newTile) && obj.board.owner ~= obj.current
+        if obj.board.isOwned(newTile) && obj.board.owner(newTile) ~= obj.current
 
             % Get the owner
             owner = obj.board.owner(newTile);
@@ -503,8 +504,8 @@ function obj = turnManager(obj)
 
             else
                 % If there are houses on the property, pay accordingly
-                if obj.board.numHouses > 0
-                    owed = obj.board.property(newTile).rent(obj.board.numHouses + 1);
+                if obj.board.numHouses(newTile) > 0
+                    owed = obj.board.property(newTile).rent(obj.board.numHouses(newTile) + 1);
 
                 else
 
@@ -520,7 +521,7 @@ function obj = turnManager(obj)
             end
 
             % Pay the player. If there is an error, proceed to debt handling.
-            [obj, isError] = payCash(owed, obj.current, Transaction.cashPlayerToPlayer, owner);
+            [obj, isError] = obj.payCash(owed, obj.current, Transaction.cashPlayerToPlayer, owner);
             % Proceed to debt handling if necessary
             if isError; debtHandling = true; oweTo = owner; [debt, isBankrupt] = ...
                     obj.calculateDebt(obj.current, owed); end
@@ -537,7 +538,7 @@ function obj = turnManager(obj)
                 % Run the scenario where the property is purchased
                 [newObj, ~] = obj.buyProperty(P, obj.current);
                 % Get the state vectors and make a selection
-                selection = game.policy(newObj.getState(), [], obj.getState());
+                selection = game.policy(newObj.getState(), model, 'epsilon', epsilon, 'baseline', obj.getState());
                 % Auction the property if it is not purchased
                 if selection == 1; obj = newObj; else; auctionFLAG = true; end
 
@@ -551,21 +552,21 @@ function obj = turnManager(obj)
                 % player in sequence. If a player is unwilling to up the
                 % bid, they are removed from the auction until only one
                 % player remains.
-                isBidding = ones(obj.numPlayers, 1); counter = obj.current - 1;
+                isBidding = ones(obj.numPlayers, 1); counter = obj.current;
                 for i = 1:obj.numPlayers; if obj.isBankrupt(i); isBidding(i) = 0; end; end
                 % Set starting bid
                 bid = min(10, obj.assets.(current)(obj.assets.asset == Resource.cash));
                 while sum(isBidding) > 1
                     % Skip iteration if player has passed
-                    player = mod(counter, obj.numPlayers - 1) + 1;
-                    if ~isBidding(player); continue; end
+                    player = mod(counter, obj.numPlayers); if player == 0; player = obj.numPlayers; end
+                    if ~isBidding(player); counter = counter + 1; continue; end
                     % For the current player, is the bid greater than cash?
                     if bid > obj.assets.("P" + string(player))(obj.assets.asset == Resource.cash)
                         isBidding(player) = 0;
                     else
                         % If not, do they want to make the offer?
                         [newObj, ~] = obj.buyProperty(P, player, bid);
-                        selection = game.policy(newObj.getState(), [], obj.getState(), player);
+                        selection = game.policy(newObj.getState(player), model, 'epsilon', epsilon, 'baseline', obj.getState(player));
                         if selection == 0
                             % If they don't want to make an offer, pass
                             isBidding(player) = 0;
@@ -646,7 +647,7 @@ function obj = turnManager(obj)
             obj.turn = obj.turn + 1;
             obj.current = mod(obj.current+1, obj.numPlayers);
             if obj.current == 0; obj.current = obj.numPlayers; end
-
+            return
         end
 
         % If the player can theoretically come up with the cash, explore
@@ -662,8 +663,8 @@ function obj = turnManager(obj)
             states = []; objects = []; sellPrice = [];
 
             % Start with morgageable properties
-            P = obj.board.property(obj.board.owner == obj.current && ...
-                obj.board.isMortgaged == false && obj.board.numHouses == 0, :);
+            P = obj.board.property(obj.board.owner == obj.current & ...
+                obj.board.isMortgaged == false & obj.board.numHouses == 0, :);
 
             if ~isempty(P)
                 for i = 1:length(P)
@@ -680,7 +681,7 @@ function obj = turnManager(obj)
             end
 
             % Proceed to sellable houses
-            P = obj.board.property(obj.board.owner == obj.current && ...
+            P = obj.board.property(obj.board.owner == obj.current & ...
                 obj.board.numHouses > 0);
             if ~isempty(P)
                 for i = 1:length(P)
@@ -692,7 +693,7 @@ function obj = turnManager(obj)
             end
 
             % Select a preferred state vector using policy function
-            selection = game.policy(states, []);
+            selection = game.policy(states, model, 'epsilon', epsilon);
     
             % Update the Monopoly object based on the chosen state vector
             obj = objects(selection); raised = raised + sellPrice(selection);
@@ -700,7 +701,7 @@ function obj = turnManager(obj)
         end
 
         % Pay the debt to the other player
-        [obj, ~] = obj.payCash(debt, obj.current, Transaction.cashPlayerToPlayer, owedTo);
+        [obj, ~] = obj.payCash(debt, obj.current, Transaction.cashPlayerToPlayer, oweTo);
 
     end
 
@@ -711,21 +712,21 @@ function obj = turnManager(obj)
     % Player may propose no more than one property swap per turn. First,
     % get tradeable properties for each player. Must be owned, not
     % mortgaged, and without houses.
-    toGive = obj.board(obj.board.owner == obj.current && obj.board.isMortgaged == false && ...
+    toGive = obj.board(obj.board.owner == obj.current & obj.board.isMortgaged == false & ...
         obj.board.numHouses == 0, :);
-    toReceive = obj.board(obj.board.isOwned == true && obj.board.owner ~= obj.currennt && ...
-        obj.board.isMortgaged == false && obj.board.numHouses == 0, :);
+    toReceive = obj.board(obj.board.isOwned == true & obj.board.owner ~= obj.current & ...
+        obj.board.isMortgaged == false & obj.board.numHouses == 0, :);
     % No other properties in the set can have houses, either
     if size(toGive, 1) > 0 && size(toReceive, 1) > 0
-        toGive.isTradeable = false(size(toGive, 1), 1);
-        toReceive.isTradeable = false(size(toReceive, 1), 1);
+        toGive.isTradeable = true(size(toGive, 1), 1);
+        toReceive.isTradeable = true(size(toReceive, 1), 1);
         for i = 1:size(toGive, 1)
-            set = toGive.set(i); set = toGive.numHouses(toGive.set == set, :);
-            if sum(set) > 0; toGive.isTradeable = false; end
+            set = toGive.set(i); set = obj.board.numHouses(obj.board.set == set, :);
+            if sum(set) > 0; toGive.isTradeable(i) = false; end
         end
         for i = 1:size(toReceive, 1)
-            set = toReceive .set(i); set = toReceive.numHouses(toReceive.set == set, :);
-            if sum(set) > 0; toReceive.isTradeable = false; end
+            set = toReceive.set(i); set = obj.board.numHouses(obj.board.set == set, :);
+            if sum(set) > 0; toReceive.isTradeable(i) = false; end
         end
         toGive(toGive.isTradeable == false, :) = [];
         toReceive(toReceive.isTradeable == false, :) = [];
@@ -735,22 +736,28 @@ function obj = turnManager(obj)
     if size(toGive, 1) > 0 && size(toReceive, 1) > 0
         % Set placeholder
         states = zeros(size(toGive, 1)*size(toReceive, 1), obj.stateLength); counter = 1;
-        pair = zeros(size(states));
+        pair = zeros(size(states, 1), 2);
         for i = 1:size(toGive, 1)
             for j = 1:size(toReceive, 1)
                 [newObj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), ...
                     toGive.property(i), toReceive.property(j));
-                states(counter, :) = newObj.getState(); counter = counter + 1;
-                pair(counter, :) = [i j];
+                states(counter, :) = newObj.getState();
+                pair(counter, :) = [i j]; counter = counter + 1;
             end
         end
+
+        % Select the preferred state vector using policy function
+        selection = game.policy(states, model, 'epsilon', epsilon, 'baseline', obj.getState());
+        if selection ~= 0
+            i = pair(selection, 1); j = pair(selection, 2);
+            [obj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), toGive.property(i), ...
+                toReceive.property(j));
+        end
+
     end
 
-    % Select the preferred state vector using policy function
-    selection = game.policy(states, []); i = pair(selection, 1); j = pair(selection, 2);
-    [obj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), toGive.property(i), ...
-        toReceive.property(j));
-
+    % NOTE: Forbid raising capital apropos of nothing
+    while false
     % ---------------------------------------------------------------------
     % SELLING HOUSES (WHILE LOOP)
     % ---------------------------------------------------------------------
@@ -758,9 +765,9 @@ function obj = turnManager(obj)
     while true
         % Player may sell houses on own turn. To do so, first obtain a list
         % of properties with houses.
-        owned = obj.board.property(obj.board.owner == obj.current && obj.board.numHouses > 0, :);
+        owned = obj.board.property(obj.board.owner == obj.current & obj.board.numHouses > 0);
         % If no properties are owned, break
-        if size(owned, 1) == 0; break; end
+        if isempty(owned); break; end
 
         % Build state array
         states = zeros(size(owned, 1), obj.stateLength);
@@ -772,7 +779,7 @@ function obj = turnManager(obj)
         end
         
         % Select the preferred state vector using the policy function
-        selection = game.policy(states, [], obj.getState());
+        selection = game.policy(states, model, 'epsilon', epsilon, 'baseline', obj.getState());
         if selection ~= 0
             [obj, ~] = obj.sellHouse(owned(selection));
         else
@@ -789,8 +796,8 @@ function obj = turnManager(obj)
         % are no houses on any propeerties of the set.
 
         % Start with morgageable properties
-        P = obj.board.property(obj.board.owner == obj.current && ...
-            obj.board.isMortgaged == false && obj.board.numHouses == 0, :);
+        P = obj.board.property(obj.board.owner == obj.current & ...
+            obj.board.isMortgaged == false & obj.board.numHouses == 0, :);
         states = [];
 
         if ~isempty(P)
@@ -808,13 +815,18 @@ function obj = turnManager(obj)
         end
 
         % Select the preferred state vector using the policy function
-        selection = game.policy(states, [], obj.getState());
-        if selection ~= 0
-            [obj, ~] = obj.sellHouse(owned(selection));
+        if ~isempty(states)
+            selection = game.policy(states, model, 'epsilon', epsilon, 'baseline', obj.getState());
+            if selection ~= 0
+                [obj, ~] = obj.mortgage(P(selection));
+            else
+                break
+            end
         else
             break
         end
 
+    end
     end
 
     % ---------------------------------------------------------------------
@@ -825,14 +837,14 @@ function obj = turnManager(obj)
         % Player may build houses on own turn. To do so, first obtain a list of
         % buildable properties (completed set, none mortgaged, with less than
         % hotel).
-        owned = obj.board.property(obj.board.owner == obj.current, :);
+        owned = obj.board(obj.board.owner == obj.current, :);
         % If no properties are owned, break
         if size(owned, 1) == 0; break; end
         owned.isBuildable = false(size(owned, 1), 1);
         for i = 1:size(owned, 1)
             % For the set to which the property belongs, if the player owns
             % them all, it may be buildable
-            set = owned.owner(owned.set == owned.set(i));
+            set = obj.board.owner(obj.board.set == owned.set(i));
             if all(set == obj.current)
                 % None of the properties can be mortgaged, and the property
                 % can't have more than five houses
@@ -862,7 +874,7 @@ function obj = turnManager(obj)
         end
     
         % Select the preferred state vector using the policy function
-        selection = game.policy(states, [], obj.getState());
+        selection = game.policy(states, model, 'epsilon', epsilon, 'baseline', obj.getState());
         if selection ~= 0
             [obj, ~] = obj.buyHouse(buildable.property(selection));
         else

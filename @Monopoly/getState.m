@@ -1,11 +1,14 @@
-function state = getState(obj)
+function state = getState(obj, varargin)
 
     % ---------------------------------------------------------------------
     % Compresses board configuration to state vector (table):
     % owner(1)...(n), numHouses(1)...(n) [-1 indicates mortgaged],
     % cash(1)...(m), netWorth(1)...(m), GOJFC (1)...(m), isJailed
-    % (1)...(m), isBankrupt (1)...(m)
+    % (1)...(m), isBankrupt (1)...(m), player
     % ---------------------------------------------------------------------
+
+    player = obj.current;
+    if ~isempty(varargin); player = varargin{1}; end
 
     % Enumerate the properties
     P = enumeration("Properties"); P(end) = [];
@@ -44,6 +47,6 @@ function state = getState(obj)
         GOJFC(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.getOutOfJail);
     end
 
-    state = [state cash netWorth GOJFC obj.isJailed obj.isBankrupt];
+    state = [state cash netWorth GOJFC obj.isJailed obj.isBankrupt player];
 
 end
