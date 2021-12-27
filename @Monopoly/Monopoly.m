@@ -10,7 +10,9 @@ classdef Monopoly
         current     double      % Current player
         doubleCounter   double  % Counter for number of doubles
         isJailed                % Is each player jailed?
-        jailCounter             % Counter for each jailed player
+        isBankrupt              % Is each player bankrupt?
+        jailCounter     double  % Counter for each jailed player
+        stateLength             % Length of state vector
     end
 
     methods
@@ -20,8 +22,9 @@ classdef Monopoly
 
             % Assign variables
             obj.numPlayers = numPlayers; obj.turn = 1; obj.current = 1;
-            obj.doubleCounter = 0; obj.isJailed = false(numPlayers, 1);
-            obj.jailCounter = zeros(numPlayers, 1);
+            obj.doubleCounter = 0; obj.isJailed = false(1, numPlayers);
+            obj.jailCounter = zeros(numPlayers, 1); obj.isBankrupt = false(1, numPlayers);
+            obj.stateLength = 66;
 
             % Create board table
             index = 1:40; index = index'; isOwned = false(40, 1); owner = zeros(40, 1);
@@ -126,7 +129,7 @@ classdef Monopoly
             % If cash or net worth is negative, return an error
             if newNetWorth < 0 || (resource == Resource.cash && newCash < 0)
                 isError = true; return
-            end
+            end; isError = false;
 
             % Update net worth (+/- cash)
             obj.assets.(playerName)(obj.assets.asset == Resource.netWorth) = newNetWorth;
@@ -190,20 +193,28 @@ classdef Monopoly
         end
 
         % Buy a property
-        function [obj, isError] = buyProperty(obj, property, player)
+        function [obj, isError] = buyProperty(obj, property, player, varargin)
+
+            % May enter custom price in case of auction
+            if ~isempty(varargin)
+                price = varargin{1};
+            else
+                price = property.purchasePrice;
+            end
+
             % If the property is owned, return an error
             if obj.board.isOwned(obj.board.property == property)
                 isError = true; return
             end
             % If the player has the cash, buy the property; else, return an
             % error
-            price = property.purchasePrice;
             [obj, isError] = obj.payCash(price, player, Transaction.cashPlayerToBank);
             if isError; return; end
             obj.board.isOwned(obj.board.property == property) = true;
             obj.board.owner(obj.board.property == property) = player;
             % Increment net worth by the mortgage value
             [obj, ~] = obj.changeNetWorth(player, property.mortgageValue, Resource.netWorth);
+            [obj, ~] = obj.changeNetWorth(0, -property.mortgageValue, Resource.netWorth);
         end
 
         % Buy a house/hotel
@@ -211,7 +222,7 @@ classdef Monopoly
             % If the current player does not have all three properties in
             % the set, return an error
             temp = obj.board.owner(obj.board.set == obj.board.set(property.index));
-            if ~all(temp == owner); isError = true; return; end
+            if ~all(temp == obj.current); isError = true; return; end
             % If the property's buildings are maxed out, return an error
             if obj.board.numHouses(obj.board.property == property) > 5
                 isError = true; return
@@ -223,6 +234,8 @@ classdef Monopoly
             if isError; return; end
             obj.board.numHouses(obj.board.property == property) = ...
                 obj.board.numHouses(obj.board.property == property) + 1;
+            % Add half the house value to net worth
+            [obj, ~] = obj.changeNetWorth(obj.current, price/2, Resource.netWorth);
         end
 
         % Swap properties between players
