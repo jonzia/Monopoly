@@ -84,6 +84,7 @@ function obj = turnManager(obj, model, epsilon)
         % increment the jail counter
     elseif obj.isJailed(obj.current) && ~isDouble
         obj.jailCounter(obj.current) = obj.jailCounter(obj.current) + 1;
+        newTile = oldTile;
     end
     % If they have had three rolls in jail without a double, they have to
     % pay 50 or present a card.
@@ -108,7 +109,7 @@ function obj = turnManager(obj, model, epsilon)
             [debt, isBankrupt] = obj.calculateDebt(obj.current, 50);
             if ~isBankrupt; obj.isJailed(obj.current) = false; ...
                     obj.jailCounter(obj.current) = 0; end
-        end
+        end; newTile = oldTile;
     end
 
     % ---------------------------------------------------------------------

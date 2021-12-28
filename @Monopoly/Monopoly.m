@@ -319,6 +319,24 @@ classdef Monopoly
             end
         end
 
+        % Compute target values based on board state, for given player
+        function result = target(obj, player)
+
+            % Target computed as player's net worth - average net worth
+            netWorth = zeros(obj.numPlayers, 1);
+            for i = 1:obj.numPlayers
+                if obj.isBankrupt(i)
+                    netWorth(i) = 0;
+                else
+                    netWorth(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.netWorth);
+                end
+            end
+            
+            result = obj.assets.("P" + string(player))(obj.assets.asset == ...
+                Resource.netWorth) - mean(netWorth);
+
+        end
+
         % Compress board into state vector
         state = getState(obj, varargin)
 
