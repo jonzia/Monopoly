@@ -7,18 +7,22 @@ function selection = policy(states, model, varargin)
     % varargin:
     %   epsilon         Epsilon greedy policy [0, 1]
     %   baseline        Baseline state
-    %   player          Quality w.r.t. specified player
+    %   numPlayers      Number of players (default 4)
     % ---------------------------------------------------------------------
 
     % Parse varargin
-    epsilon = 1; baseline = [];
+    baseline = []; epsilon = ones(1, 8);
     if ~isempty(varargin)
         for i = 1:length(varargin)
             if strcmp(varargin{i}, 'epsilon'); epsilon = varargin{i+1};
             elseif strcmp(varargin{i}, 'baseline'); baseline = varargin{i+1};
             end
         end
-    end
+    end; player = states(1, end); model = model{player}; epsilon = epsilon(player);
+    
+    % TEMP
+    states(:, 61:64) = [];
+    try baseline(:, 61:64) = []; catch; end
 
     % Must have random policy if model is empty
     if isempty(model); epsilon = 1; end

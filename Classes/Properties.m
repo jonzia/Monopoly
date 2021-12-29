@@ -37,7 +37,7 @@ classdef Properties
         PennsylvaniaRR  (16, 200, nan, [25, 50, 100, 200, nan, nan], 100, true, false)
         StJames         (17, 180, 100, [14, 70, 200, 550, 750, 950], 90, false, false)
         Tennessee       (19, 180, 100, [14, 70, 200, 550, 750, 950], 90, false, false)
-        NewYork         (10, 200, 100, [16, 80, 220, 600, 800, 1000], 100, false, false)
+        NewYork         (20, 200, 100, [16, 80, 220, 600, 800, 1000], 100, false, false)
         Kentucky        (22, 220, 150, [18, 90, 250, 700, 875, 1050], 110, false, false)
         Indiana         (24, 220, 150, [18, 90, 250, 700, 875, 1050], 110, false, false)
         Illinois        (25, 240, 150, [20, 100, 300, 750, 925, 1100], 120, false, false)

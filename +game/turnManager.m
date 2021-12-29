@@ -43,7 +43,7 @@ function obj = turnManager(obj, model, epsilon)
             newObj = obj;
             [newObj, ~] = newObj.payCash(50, obj.current, Transaction.cashPlayerToBank);
             newObj.isJailed(obj.current) = false; newObj.jailCounter(obj.current) = 0;
-            selection = game.policy(newObj.getState(), 'epsilon', epsilon, 'baseline', model, obj.getState());
+            selection = game.policy(newObj.getState(), model, 'epsilon', epsilon, 'baseline', obj.getState());
             if selection == 1; obj = newObj; end
         end
     end
@@ -157,7 +157,7 @@ function obj = turnManager(obj, model, epsilon)
                 case Chance.advanceToRailroad
 
                     % Find nearest railroad
-                    newTile = obj.nearest(oldTile, Chance.advanceToRailroad.idx);
+                    newTile = obj.nearest(newTile, Chance.advanceToRailroad.idx);
 
                     % Advance to railroad and collect 200 if pass Go
                     [obj, newTile] = obj.moveToken(newTile, false, true);
@@ -175,7 +175,7 @@ function obj = turnManager(obj, model, epsilon)
                 case Chance.advanceToUtility
 
                     % Find nearest utility
-                    nearest = obj.nearest(oldTile, Chance.advanceToUtility.idx);
+                    nearest = obj.nearest(newTile, Chance.advanceToUtility.idx);
 
                     % Advannce to nearest utility and collect 200 if
                     % pass Go
@@ -238,8 +238,8 @@ function obj = turnManager(obj, model, epsilon)
                 case Chance.goBack3
 
                     % Go back three spaces
-                    newTile = oldTile + Chance.goBack3.idx;
-                    if newTile < 0; newTile = newTile + 40; end
+                    newTile = newTile + Chance.goBack3.idx;
+                    if newTile <= 0; newTile = newTile + 40; end
                     [obj, newTile] = obj.moveToken(newTile, false, false);
 
                     % NOTE: COULD LAND ON CC OR LUXURY TAX
