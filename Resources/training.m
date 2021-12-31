@@ -88,7 +88,7 @@ save('model_2.mat', 'model');
 
 %% Generate training data with lower epsilon
 
-numGames = 500; counter = 413;
+numGames = 500; counter = 474;
 % X = cell(numGames, 4); Y = cell(numGames, 1); M = cell(numGames, 1);
 
 f = waitbar(counter/numGames, "Game " + string(counter) + " of " + string(numGames));

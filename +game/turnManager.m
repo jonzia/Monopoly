@@ -548,7 +548,7 @@ function obj = turnManager(obj, model, epsilon)
             % Auction the property
             if auctionFLAG
 
-                % The bidding is performed by starting at $10 and
+                % The bidding is performed by starting at $X and
                 % increasing in $10 increments, passing the bid to each
                 % player in sequence. If a player is unwilling to up the
                 % bid, they are removed from the auction until only one
@@ -556,7 +556,7 @@ function obj = turnManager(obj, model, epsilon)
                 isBidding = ones(obj.numPlayers, 1); counter = obj.current;
                 for i = 1:obj.numPlayers; if obj.isBankrupt(i); isBidding(i) = 0; end; end
                 % Set starting bid
-                bid = min(10, obj.assets.(current)(obj.assets.asset == Resource.cash));
+                bid = min(P.mortgageValue, obj.assets.(current)(obj.assets.asset == Resource.cash));
                 while sum(isBidding) > 1
                     % Skip iteration if player has passed
                     player = mod(counter, obj.numPlayers); if player == 0; player = obj.numPlayers; end
@@ -751,8 +751,16 @@ function obj = turnManager(obj, model, epsilon)
         selection = game.policy(states, model, 'epsilon', epsilon, 'baseline', obj.getState());
         if selection ~= 0
             i = pair(selection, 1); j = pair(selection, 2);
-            [obj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), toGive.property(i), ...
-                toReceive.property(j));
+            newState = states(selection, :); newState(end) = toReceive.owner(j);
+            oldState = obj.getState(); oldState(end) = toReceive.owner(j);
+            temp = model; temp{obj.current} = model{toReceive.owner(j)};
+            temp2 = epsilon; temp2(obj.current) = epsilon(toReceive.owner(j));
+            selection = game.policy(newState, temp, 'epsilon', temp2, 'baseline', oldState);
+            % DOES THE OTHER PLAYER ACCEPT IT??
+            if selection ~= 0
+                [obj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), toGive.property(i), ...
+                    toReceive.property(j));
+            end
         end
 
     end
