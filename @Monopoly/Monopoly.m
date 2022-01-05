@@ -24,7 +24,7 @@ classdef Monopoly
             obj.numPlayers = numPlayers; obj.turn = 1; obj.current = 1;
             obj.doubleCounter = 0; obj.isJailed = false(1, numPlayers);
             obj.jailCounter = zeros(numPlayers, 1); obj.isBankrupt = false(1, numPlayers);
-            obj.stateLength = 57 + 5*obj.numPlayers;
+            obj.stateLength = 57 + 4*obj.numPlayers;
 
             % Create board table
             index = 1:40; index = index'; isOwned = false(40, 1); owner = zeros(40, 1);

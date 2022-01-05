@@ -3,8 +3,8 @@ function state = getState(obj, varargin)
     % ---------------------------------------------------------------------
     % Compresses board configuration to state vector (table):
     % owner(1)...(n), numHouses(1)...(n) [-1 indicates mortgaged],
-    % cash(1)...(m), netWorth(1)...(m), GOJFC (1)...(m), isJailed
-    % (1)...(m), isBankrupt (1)...(m), player
+    % cash(1)...(m), GOJFC (1)...(m), isJailed (1)...(m),
+    % isBankrupt (1)...(m), player
     % ---------------------------------------------------------------------
 
     player = obj.current;
@@ -43,10 +43,11 @@ function state = getState(obj, varargin)
     isJailed = zeros(1, m); isBankrupt = zeros(1, m);
     for i = 1:m
         cash(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.cash);
-        netWorth(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.netWorth);
+        % netWorth(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.netWorth);
         GOJFC(i) = obj.assets.("P" + string(i))(obj.assets.asset == Resource.getOutOfJail);
     end
 
-    state = [state cash netWorth GOJFC obj.isJailed obj.isBankrupt player];
+    % state = [state cash netWorth GOJFC obj.isJailed obj.isBankrupt player];
+    state = [state cash GOJFC obj.isJailed obj.isBankrupt player];
 
 end

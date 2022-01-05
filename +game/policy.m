@@ -19,10 +19,6 @@ function selection = policy(states, model, varargin)
             end
         end
     end; player = states(1, end); model = model{player}; epsilon = epsilon(player);
-    
-    % TEMP
-    states(:, 61:64) = [];
-    try baseline(:, 61:64) = []; catch; end
 
     % Must have random policy if model is empty
     if isempty(model); epsilon = 1; end

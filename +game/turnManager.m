@@ -752,10 +752,8 @@ function obj = turnManager(obj, model, epsilon)
         if selection ~= 0
             i = pair(selection, 1); j = pair(selection, 2);
             newState = states(selection, :); newState(end) = toReceive.owner(j);
-            oldState = obj.getState(); oldState(end) = toReceive.owner(j);
-            temp = model; temp{obj.current} = model{toReceive.owner(j)};
-            temp2 = epsilon; temp2(obj.current) = epsilon(toReceive.owner(j));
-            selection = game.policy(newState, temp, 'epsilon', temp2, 'baseline', oldState);
+            oldState = obj.getState(toReceive.owner(j));
+            selection = game.policy(newState, model, 'epsilon', epsilon, 'baseline', oldState);
             % DOES THE OTHER PLAYER ACCEPT IT??
             if selection ~= 0
                 [obj, ~] = obj.swapProperties(obj.current, toReceive.owner(j), toGive.property(i), ...
