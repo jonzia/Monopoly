@@ -6,8 +6,7 @@ This Matlab package contains the necessary objects, functions, and scripts for t
 1. [Package Structure](#package-structure)
 2. [Simplifying Assumptions](#simplifying-assumptions-in-simulation)
 3. [Custom Reward Functions](#defining-custom-reward-functions)
-4. [Training and Testing](#value-function-training-and-testing)
-5. [Tutorial](#tutorial)
+5. [Training and Testing](#value-function-training-and-testing)
 6. [Implementation in Real Games](#implementation-in-real-games)
 
 ## Package Structure
@@ -33,11 +32,18 @@ There are several simplifying assumptions made by `game.turnManager()` which are
 
 ## Defining Custom Reward Functions
 
+The user may wish to implement a different measure of reward with which to train the value function. Reward at each step is calculated using the member function `Monopoly.target()`. The game manager calculates the expected reward at each step by summing the reward over a specified number of steps (input `lambda`). Presently, if n<sub>i</sub> is the net worth for player i on the present turn, the reward is calculated as R(i) = n<sub>i</sub> - mean(n<sub>not i</sub>). This is meant to incentivize a player to make decisions which not only increase their net worth, but decrease the net worth of their opponents. Users may modify this reward function by re-writing the `Monopoly.target()` member function in `@Monopoly/Monopoly.m` accordingly.
+
 ## Value Function Training and Testing
 
-## Tutorial
 ### Tutorial Scripts
+The file `Resources/tutorial.mlx` contains tutorials for generating gameplay data, training models to estimate the value function, and testing model performance. The tutorials use ensembled regression trees to model the value function, as decision-making in Monopoly is conducive to a decision tree format. This decision is otherwise arbitrary, however, and may be substituted for another model. The scripts included in this file are intended to provide the code fragments necessary to build full reinforcement learning paradigms.
+
 ### Example Training and Testing Data
+Gameplay data generated using the corresponding modules in `tutorial.mlx` are available in the `Resources/Simulations/` folder. File names correspond to those shown in the relevant `tutorial.mlx` module. Please note that this package is actively being updated, and provided simulation data and models may contain errors present in prior versions of the package; these are intended for example and should not be considered deployment-ready training data or models.
+
 ### Example Models
+Ensemble regression tree models generated using the corresponding gameplay data are available in the `Resources/Models/` folder. File names correspond to those shown in the relevant `tutorial.mlx` module.
 
 ## Implementation in Real Games
+The file `Resources/interface.mlx` is intended to bride the gap between learned value functions and actual human v. computer live-action gameplay. 
