@@ -40,9 +40,7 @@ function [X, Y, M] = gameManager(model, epsilon, varargin)
         % Run turn
         M = game.turnManager(M, model, epsilon);
 
-        % Get data and reward for current turn % TO DO
-%         for i = 1:numPlayers; X{1, i} = [M.getState(i); X{1, i}]; ...
-%                 R(i) = M.target(i) - R0(i); end; Y = [R; Y];
+        % Get data and reward for current turn
         for i = 1:numPlayers; X{1, i} = [M.getState(i); X{1, i}]; ...
                 R(i) = M.target(i)/lambda; end; Y = [R; Y];
         for i = 2:lambda
