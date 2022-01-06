@@ -1,4 +1,4 @@
-# Monopoly
+# BOT-OPOLY (MONOPOLY)
 
 This Matlab package contains the necessary objects, functions, and scripts for training autonomous agents to play the board game Monopoly via reinforcement learning. This includes functionality for running Monte Carlo simulations of Monopoly games using either a random policy or an epsilon-greedy policy on a specified value function. The trained models may then be used with the provided `interface.mlx` script for implementation in player v. computer matches.
 
@@ -46,4 +46,8 @@ Gameplay data generated using the corresponding modules in `tutorial.mlx` are av
 Ensemble regression tree models generated using the corresponding gameplay data are available in the `Resources/Models/` folder. File names correspond to those shown in the relevant `tutorial.mlx` module.
 
 ## Implementation in Real Games
-The file `Resources/interface.mlx` is intended to bride the gap between learned value functions and actual human v. computer live-action gameplay. 
+The file `Resources/interface.mlx` is intended to bride the gap between learned value functions and actual human v. computer live-action gameplay. The script enables the players to update the board state during a live-action multiplayer game such that the program may use the learned value function to make decisions. It has been written in an attempt to minimize time spent entering data and enable real-time gameplay. This includes replacing text-based entry with graphical interfaces wherever possible.
+
+The live script generally has two sections. The first section is intended to update the board state when a human player makes one of a variety of actions; the second section is an analogue of the turn manager used during training, which manages the bot's turn. The former contains modules which may be run in any sequence as the human player takes actions, with hyperlinks present after each section to quickly return to the table of contents and select the next action. The latter is designed (but not required) to be run in sequence, with hyperlinks present after each section, quickly guiding the user to the next relevant section.
+
+To use this script, ensure that the desired `model.mat` file is loaded into the workspace. The model may then be initialized with the desired parameters by running the `Initialize Model` section. _(Of note, one or more players may be a bot -- as in, their moves are completely determined by the trained models -- and any human player may take actions based on the trained models as well; simply running the corresponnding "A.I." section rather than "Human Player" section for the current player allows the bot to automate an action.)_ After each turn is completed, running the `Housekeeping` module handles tasks such as updating the current player based on the dice roll, allowing the user to skip back to the top of the script by pressing the hyperlink and beginning the next turn. A final note on this script concerns trading. Note that while the bot may only propose 1-for-1 property trades, it can analyze more complex trades offered by human players. Complex trades may be entered in the `Assess Offered Trade` section.
